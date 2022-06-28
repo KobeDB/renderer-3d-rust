@@ -1,5 +1,6 @@
 use crate::matrix4::Matrix4;
 
+#[derive(Debug)]
 pub struct Vec4 { elems: [f32;4] }
 
 impl Vec4 {
@@ -26,7 +27,7 @@ impl Vec4 {
         for el in 0..=3 {
             let mut new_el: f32 = 0.0;
             for i in 0..=3 {
-                new_el += mat.elements[i][el];
+                new_el += mat.elements[i][el] * self.elems[i];
             }
             new_el *= self.elems[el];
             self.elems[el] = new_el;

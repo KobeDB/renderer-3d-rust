@@ -1,3 +1,6 @@
+use std::f32::consts::PI;
+use crate::Vec4;
+
 /// we use row vectors
 pub struct Matrix4 {
     pub elements: [[f32; 4]; 4],
@@ -38,14 +41,25 @@ impl Matrix4 {
         result
     }
 
-    pub fn mul(&self, other: &Self) -> Self {
+    pub fn new_eye_point_transformation(theta_rad: f32, phi_rad: f32, r: f32) -> Self {
+        let mut result = Self::new_identity();
+
+        result = Self::mul(&result, &Self::new_rotation_z(theta_rad+PI/2.0));
+        result = Self::mul(&result, &Self::new_rotation_x(phi_rad));
+
+        result.elements[3][2] = -r;
+
+        result
+    }
+
+    pub fn mul(a: &Self, b: &Self) -> Self {
         let mut elements = [[0.0 as f32; 4]; 4];
 
         for col in 0..=3 {
             for row in 0..=3 {
                 let mut dot_prod: f32 = 0.0;
                 for i in 0..=3 {
-                    dot_prod += self.elements[row][i] * other.elements[i][col];
+                    dot_prod += a.elements[row][i] * b.elements[i][col];
                 }
                 elements[row][col] = dot_prod;
             }
@@ -53,4 +67,16 @@ impl Matrix4 {
 
         Self{elements}
     }
+}
+
+#[test]
+fn test_eyepoint() {
+    let mut a = Vec4::new_point(1.0,1.0,1.0);
+    a.transform(&Matrix4::new_eye_point_transformation(PI/2.0,PI/2.0, 5.0 ));
+
+    let mut b = Vec4::new_point(-1.0,-1.0,0.0);
+    b.transform(&Matrix4::new_eye_point_transformation(PI/2.0,PI/2.0, 5.0 ));
+
+    println!("a: {:?}", a);
+    println!("b: {:?}", b);
 }
