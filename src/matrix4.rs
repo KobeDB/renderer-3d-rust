@@ -1,5 +1,5 @@
 use std::f32::consts::PI;
-use crate::Vec4;
+use crate::{Vec4, vec4};
 
 /// we use row vectors
 pub struct Matrix4 {
@@ -41,13 +41,13 @@ impl Matrix4 {
         result
     }
 
-    pub fn new_eye_point_transformation(theta_rad: f32, phi_rad: f32, r: f32) -> Self {
+    pub fn new_eye_point_transformation(eye_pos: &PolarCoord) -> Self {
         let mut result = Self::new_identity();
 
-        result = Self::mul(&result, &Self::new_rotation_z(theta_rad+PI/2.0));
-        result = Self::mul(&result, &Self::new_rotation_x(phi_rad));
+        result = Self::mul(&result, &Self::new_rotation_z(eye_pos.theta_rad+PI/2.0));
+        result = Self::mul(&result, &Self::new_rotation_x(eye_pos.phi_rad));
 
-        result.elements[3][2] = -r;
+        result.elements[3][2] = -eye_pos.r;
 
         result
     }
@@ -69,15 +69,42 @@ impl Matrix4 {
     }
 }
 
+pub struct PolarCoord {
+    pub theta_rad:  f32,
+    pub phi_rad:    f32,
+    pub r:          f32,
+}
+
+impl PolarCoord {
+    pub fn new(theta_rad: f32, phi_rad: f32, r: f32) -> Self {
+        Self{theta_rad,phi_rad,r}
+    }
+
+    pub fn new_from_cartesian(x:f32,y:f32,z:f32) -> Self {
+        let r = f32::sqrt(x*x+y*y+z*z);
+        let theta_rad = f32::atan2(y,x);
+        let phi_rad = f32::acos(z/r);
+
+        Self{theta_rad,phi_rad,r}
+    }
+}
+
 #[test]
 fn test_eyepoint() {
+    let eye_pos = PolarCoord::new(PI/2.0, PI/2.0, 5.0);
+    let eye_point_transform = Matrix4::new_eye_point_transformation(&eye_pos);
+
     let mut a = Vec4::new_point(1.0,1.0,1.0);
-    a = a.mul(&Matrix4::new_eye_point_transformation(PI/2.0, PI/2.0, 5.0 ));
+    a = a.mul(&eye_point_transform);
 
     let mut b = Vec4::new_point(-1.0,-1.0,0.0);
-    b = b.mul(&Matrix4::new_eye_point_transformation(PI/2.0, PI/2.0, 5.0 ));
+    b = b.mul(&eye_point_transform);
 
+    let mut c = Vec4::new_point(0.0,5.0,0.0);
+    c = c.mul(&eye_point_transform);
 
     println!("a: {:?}", a);
     println!("b: {:?}", b);
+    println!("b: {:?}", c);
+
 }

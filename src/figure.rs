@@ -1,10 +1,11 @@
 use crate::vec4;
 use vec4::Vec4;
+use crate::matrix4::Matrix4;
 
 pub struct Face {
     // indexes in points from Figure, stored counter clock wise if you
     // look at the face from the outside
-    indexes: Vec<usize>
+    pub indexes: Vec<usize>
 }
 
 impl Face{
@@ -14,12 +15,12 @@ impl Face{
 }
 
 pub struct Figure {
-    points: Vec<Vec4>,
-    faces: Vec<Face>,
+    pub vertices: Vec<Vec4>,
+    pub faces: Vec<Face>,
 }
 
 impl Figure {
-    fn new_tetrahedron() -> Self {
+    pub fn new_tetrahedron() -> Self {
         let points: Vec<Vec4> = vec![
             Vec4::new_point(1.0,-1.0,-1.0),
             Vec4::new_point(-1.0,1.0,-1.0),
@@ -34,6 +35,12 @@ impl Figure {
             Face::new(vec![1,3,2])
         ];
 
-        Self{ points, faces }
+        Self{ vertices: points, faces }
+    }
+
+    pub fn transform(&mut self, t: &Matrix4) {
+        for vertex in self.vertices.iter_mut() {
+            *vertex = vertex.mul(t);
+        }
     }
 }
