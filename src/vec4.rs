@@ -23,15 +23,16 @@ impl Vec4 {
         Self{elems: [ x, y, z, 0.0 ]}
     }
 
-    pub fn transform(&mut self, mat: &Matrix4) {
+    pub fn mul(&self, mat: &Matrix4) -> Self {
+        let mut elems = [0.0 as f32;4];
         for el in 0..=3 {
             let mut new_el: f32 = 0.0;
             for i in 0..=3 {
                 new_el += mat.elements[i][el] * self.elems[i];
             }
-            new_el *= self.elems[el];
-            self.elems[el] = new_el;
+            elems[el] = new_el;
         }
+        Self{elems}
     }
 }
 
@@ -41,4 +42,20 @@ fn dot_product(u: &[f32;4], v: &[f32;4]) -> f32 {
         result += u[i]*v[i];
     }
     result
+}
+
+impl PartialEq for Vec4 {
+    fn eq(&self, other: &Self) -> bool {
+        self.elems == other.elems
+    }
+    fn ne(&self, other: &Self) -> bool {
+        !self.eq(other)
+    }
+}
+
+#[test]
+fn test_vec_mat_mul() {
+    let v = Vec4::new_point(420.0,69.0,21.0);
+    let vt = v.mul(&Matrix4::new_identity());
+    assert_eq!(v, vt);
 }

@@ -72,10 +72,11 @@ impl Matrix4 {
 #[test]
 fn test_eyepoint() {
     let mut a = Vec4::new_point(1.0,1.0,1.0);
-    a.transform(&Matrix4::new_eye_point_transformation(PI/2.0,PI/2.0, 5.0 ));
+    a = a.mul(&Matrix4::new_eye_point_transformation(PI/2.0, PI/2.0, 5.0 ));
 
     let mut b = Vec4::new_point(-1.0,-1.0,0.0);
-    b.transform(&Matrix4::new_eye_point_transformation(PI/2.0,PI/2.0, 5.0 ));
+    b = b.mul(&Matrix4::new_eye_point_transformation(PI/2.0, PI/2.0, 5.0 ));
+
 
     println!("a: {:?}", a);
     println!("b: {:?}", b);
