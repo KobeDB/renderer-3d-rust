@@ -41,13 +41,34 @@ impl Matrix4 {
         result
     }
 
-    pub fn new_eye_point_transformation(eye_pos: &PolarCoord) -> Self {
+    pub fn new_translation(x:f32,y:f32,z:f32) -> Self {
+        let mut result = Self::new_identity();
+        result.elements[3][0] = x;
+        result.elements[3][1] = y;
+        result.elements[3][2] = z;
+        result
+    }
+
+    pub fn new_eye_point_transform_looking_at_origin(eye_pos: &PolarCoord) -> Self {
         let mut result = Self::new_identity();
 
         result = Self::mul(&result, &Self::new_rotation_z(eye_pos.theta_rad+PI/2.0));
         result = Self::mul(&result, &Self::new_rotation_x(eye_pos.phi_rad));
 
         result.elements[3][2] = -eye_pos.r;
+
+        result
+    }
+
+    pub fn new_eye_point_transform(eye_pos: &Vec4, eye_dir: &Vec4) -> Self {
+        let mut result = Self::new_identity();
+        result = Self::mul(&result, &Self::new_translation(-eye_pos.x(), -eye_pos.y(), -eye_pos.z()));
+
+        let eye_dir = Vec4::normalize(eye_dir);
+        let eye_dir = PolarCoord::new_from_cartesian(-eye_dir.x(), -eye_dir.y(), -eye_dir.z());
+
+        result = Self::mul(&result, &Self::new_rotation_z(eye_dir.theta_rad+PI/2.0));
+        result = Self::mul(&result, &Self::new_rotation_x(eye_dir.phi_rad));
 
         result
     }
@@ -92,7 +113,7 @@ impl PolarCoord {
 #[test]
 fn test_eyepoint() {
     let eye_pos = PolarCoord::new(PI/2.0, PI/2.0, 5.0);
-    let eye_point_transform = Matrix4::new_eye_point_transformation(&eye_pos);
+    let eye_point_transform = Matrix4::new_eye_point_transform_looking_at_origin(&eye_pos);
 
     let mut a = Vec4::new_point(1.0,1.0,1.0);
     a = a.mul(&eye_point_transform);

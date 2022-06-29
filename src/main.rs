@@ -32,23 +32,24 @@ fn main() {
 #[test]
 fn test_rendering_stuff() {
     let aspect_ratio = 16.0/9.0; // width / height
-    let image_width = 1000;
+    let image_width = 1024;
     let image_height = (image_width as f32 * 1.0/aspect_ratio) as u32;
 
     let d_near = 1.0;
     let d_far = 100.0;
-    let hfov_rad = PI/2.0;
+    let hfov_rad = PI/6.0;
     let left = -f32::tan(hfov_rad/2.0) * d_near;
     let right = -left;
     let top = right * 1.0/aspect_ratio;
     let bottom = -top;
 
     let mut image = Image::new(image_width, image_height);
-    let img_scaling = image_width as f32/(right-left) * 0.9;
-    let img_offset = Vec2::new(-left,-bottom);
+    let viewport_scaling = image_width as f32/(right-left) * 0.9;
+    let viewport_offset = Vec2::new(-left, -bottom);
 
-    let eye_pos = PolarCoord::new_from_cartesian(0.0,10.0,0.0);
-    let eye_point_transform = Matrix4::new_eye_point_transformation(&eye_pos);
+    let eye_pos = Vec4::new_point(20.0, 10.0, 15.0);
+    //let eye_point_transform = Matrix4::new_eye_point_transform_looking_at_origin(&eye_pos);
+    let eye_point_transform = Matrix4::new_eye_point_transform(&eye_pos, &eye_pos.neg());
 
     let mut fig = Figure::new_tetrahedron();
     fig.transform(&eye_point_transform);
@@ -60,17 +61,17 @@ fn test_rendering_stuff() {
         let a = &fig.vertices[face.indexes[0]];
         let b = &fig.vertices[face.indexes[1]];
         let c = &fig.vertices[face.indexes[2]];
-        draw_triangle(a, b, c, img_scaling, &img_offset, &mut image);
+        draw_triangle(a, b, c, viewport_scaling, &viewport_offset, &mut image);
     }
 
     image.save("siccimage.bmp").expect("writing to file failed");
 }
 
-fn draw_triangle(a: &Vec4, b: &Vec4, c: &Vec4, img_scaling: f32, img_offset: &Vec2, image: &mut Image) {
+fn draw_triangle(a: &Vec4, b: &Vec4, c: &Vec4, viewport_scaling: f32, viewport_offset: &Vec2, image: &mut Image) {
     // project a, b and c to screen space
-    let proj_a = project_point(a, img_scaling, img_offset);
-    let proj_b = project_point(b, img_scaling, img_offset);
-    let proj_c = project_point(c, img_scaling, img_offset);
+    let proj_a = project_point(a, viewport_scaling, viewport_offset);
+    let proj_b = project_point(b, viewport_scaling, viewport_offset);
+    let proj_c = project_point(c, viewport_scaling, viewport_offset);
 
     // find min and max y values of the projected triangle
     let proj_y_values = vec![proj_a.y(), proj_b.y(), proj_c.y()];

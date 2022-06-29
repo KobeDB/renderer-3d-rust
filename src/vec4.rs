@@ -34,6 +34,19 @@ impl Vec4 {
         }
         Self{elems}
     }
+
+    pub fn normalize(&self) -> Self{
+        let l = (self.elems[0]*self.elems[0] + self.elems[1]*self.elems[1] + self.elems[2]*self.elems[2]).sqrt();
+        Self{elems: [self.elems[0]/l, self.elems[1]/l, self.elems[2]/l, self.elems[3]]}
+    }
+
+    pub fn neg(&self) -> Self {
+        let mut elems = self.elems.clone();
+        for i in 0..=2 {
+            elems[i] *= -1.0;
+        }
+        Self{elems}
+    }
 }
 
 fn dot_product(u: &[f32;4], v: &[f32;4]) -> f32 {
