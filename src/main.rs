@@ -1,3 +1,5 @@
+extern crate core;
+
 mod vec4;
 
 use std::cmp::max;
@@ -5,7 +7,7 @@ use std::f32::consts::PI;
 use vec4::Vec4;
 
 mod figure;
-use figure::Figure;
+use figure::Mesh;
 
 mod matrix4;
 mod vec2;
@@ -15,6 +17,7 @@ mod ini_reader;
 use color::Color;
 
 use bmp::*;
+use crate::figure::Figure;
 use crate::matrix4::{Matrix4, PolarCoord};
 use crate::vec2::Vec2;
 
@@ -32,6 +35,8 @@ fn main() {
 
     image.save("siccimage.bmp").expect("writing to file failed");
 }
+
+
 
 #[test]
 fn test_rendering_stuff() {
@@ -55,22 +60,34 @@ fn test_rendering_stuff() {
     //let eye_point_transform = Matrix4::new_eye_point_transform_looking_at_origin(&eye_pos);
     let eye_point_transform = Matrix4::new_eye_point_transform(&eye_pos, &eye_pos.neg());
 
-    let mut fig = Figure::new_torus(3.0,1.0,36,36);
-    fig.triangulate();
-    fig.transform(&eye_point_transform);
+    let mut figures = Vec::new();
 
-    for face in fig.faces {
-        if face.indexes.len() != 3 {
-            eprintln!("face must be a triangle");
-            break;
+    let mut mesh = Mesh::new_torus(3.0, 1.0, 36, 36);
+    mesh.triangulate();
+    mesh.transform(&eye_point_transform);
+
+    let ambient_reflection = Color::new(1.0,0.0,1.0);
+    let diffuse_reflection = ambient_reflection;
+    let specular_reflection = ambient_reflection;
+
+    let fig = Figure{ mesh, ambient_reflection, diffuse_reflection, specular_reflection };
+
+    figures.push(fig);
+
+    for fig in figures.iter() {
+        for face in fig.mesh.faces.iter() {
+            if face.indexes.len() != 3 {
+                eprintln!("face must be a triangle");
+                break;
+            }
+            let a = &fig.mesh.vertices[face.indexes[0]];
+            let b = &fig.mesh.vertices[face.indexes[1]];
+            let c = &fig.mesh.vertices[face.indexes[2]];
+            draw_triangle(a, b, c,
+                          viewport_scaling, &viewport_offset,
+                          &fig.ambient_reflection, &fig.diffuse_reflection, &fig.specular_reflection,
+                          &mut image);
         }
-        let a = &fig.vertices[face.indexes[0]];
-        let b = &fig.vertices[face.indexes[1]];
-        let c = &fig.vertices[face.indexes[2]];
-        draw_triangle(a, b, c,
-                      viewport_scaling, &viewport_offset,
-                      &Color::new(0.2,0.4,1.0), &Color::new(0.0,0.0,0.0), &Color::new(0.0,0.0,0.0),
-                      &mut image);
     }
 
     image.save("siccimage.bmp").expect("writing to file failed");

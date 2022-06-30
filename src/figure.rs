@@ -3,6 +3,13 @@ use crate::{Color, vec4};
 use vec4::Vec4;
 use crate::matrix4::Matrix4;
 
+pub struct Figure {
+    pub mesh: Mesh,
+    pub ambient_reflection: Color,
+    pub diffuse_reflection: Color,
+    pub specular_reflection: Color,
+}
+
 pub struct Face {
     // indexes in points from Figure, stored counter clock wise if you
     // look at the face from the outside
@@ -15,12 +22,12 @@ impl Face{
     }
 }
 
-pub struct Figure {
+pub struct Mesh {
     pub vertices: Vec<Vec4>,
     pub faces: Vec<Face>,
 }
 
-impl Figure {
+impl Mesh {
     pub fn new_tetrahedron() -> Self {
         let points: Vec<Vec4> = vec![
             Vec4::new_point(1.0,-1.0,-1.0),
