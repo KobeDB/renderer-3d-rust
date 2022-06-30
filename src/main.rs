@@ -10,6 +10,8 @@ use figure::Figure;
 mod matrix4;
 mod vec2;
 mod color;
+mod ini_reader;
+
 use color::Color;
 
 use bmp::*;
