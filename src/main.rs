@@ -9,6 +9,8 @@ use figure::Figure;
 
 mod matrix4;
 mod vec2;
+mod color;
+use color::Color;
 
 use bmp::*;
 use crate::matrix4::{Matrix4, PolarCoord};
@@ -44,45 +46,57 @@ fn test_rendering_stuff() {
     let bottom = -top;
 
     let mut image = Image::new(image_width, image_height);
-    let viewport_scaling = image_width as f32/(right-left) * 0.9;
+    let viewport_scaling = image_width as f32/(right-left) * 0.99;
     let viewport_offset = Vec2::new(-left, -bottom);
 
     let eye_pos = Vec4::new_point(20.0, 10.0, 15.0);
     //let eye_point_transform = Matrix4::new_eye_point_transform_looking_at_origin(&eye_pos);
     let eye_point_transform = Matrix4::new_eye_point_transform(&eye_pos, &eye_pos.neg());
 
-    let mut fig = Figure::new_tetrahedron();
+    let mut fig = Figure::new_torus(3.0,1.0,36,36);
+    fig.triangulate();
     fig.transform(&eye_point_transform);
 
     for face in fig.faces {
         if face.indexes.len() != 3 {
             eprintln!("face must be a triangle");
+            break;
         }
         let a = &fig.vertices[face.indexes[0]];
         let b = &fig.vertices[face.indexes[1]];
         let c = &fig.vertices[face.indexes[2]];
-        draw_triangle(a, b, c, viewport_scaling, &viewport_offset, &mut image);
+        draw_triangle(a, b, c,
+                      viewport_scaling, &viewport_offset,
+                      &Color::new(0.2,0.4,1.0), &Color::new(0.0,0.0,0.0), &Color::new(0.0,0.0,0.0),
+                      &mut image);
     }
 
     image.save("siccimage.bmp").expect("writing to file failed");
 }
 
-fn draw_triangle(a: &Vec4, b: &Vec4, c: &Vec4, viewport_scaling: f32, viewport_offset: &Vec2, image: &mut Image) {
+
+
+fn draw_triangle(a: &Vec4, b: &Vec4, c: &Vec4,
+                 viewport_scaling: f32, viewport_offset: &Vec2,
+                 ambient_reflection: &Color, diffuse_reflection: &Color, specular_reflection: &Color,
+                 image: &mut Image) {
     // project a, b and c to screen space
     let proj_a = project_point(a, viewport_scaling, viewport_offset);
     let proj_b = project_point(b, viewport_scaling, viewport_offset);
     let proj_c = project_point(c, viewport_scaling, viewport_offset);
 
-    // find min and max y values of the projected triangle
+    // find min and max y values of the projected triangle (bounding box)
     let proj_y_values = vec![proj_a.y(), proj_b.y(), proj_c.y()];
     let min_y = proj_y_values.iter().fold(f32::INFINITY, |a, &b| a.min(b)) as u32;
     let max_y = proj_y_values.iter().fold(-f32::INFINITY, |a, &b| a.max(b)) as u32;
 
-    for y_i in min_y+1..max_y {
+    let mut reflected_color = *ambient_reflection;
+
+    for y_i in min_y..=max_y {
         // determine where to start drawing the horizontal "scanline" and where to end
         let (x_l, x_r) = calculate_scanline(y_i, &proj_a, &proj_b, &proj_c);
-        for x_i in x_l..x_r {
-            image.put_pixel(x_i, y_i, px!(255,0,255));
+        for x_i in x_l..=x_r {
+            image.put_pixel(x_i, y_i, reflected_color.to_pixel());
         }
     }
 
