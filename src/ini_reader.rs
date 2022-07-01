@@ -7,6 +7,7 @@ use std::path::Path;
 use std::string::ParseError;
 use crate::ini_reader::IniValue::Number;
 
+#[derive(Debug)]
 enum IniValue {
     String(String),
     Number(f32),
@@ -15,6 +16,35 @@ enum IniValue {
 
 impl IniValue {
     pub fn from(s: &str) -> Result<IniValue, ()> {
+
+        let s = s.trim();
+
+        if s.starts_with("\"") {
+            let result = s.strip_prefix("\"")
+                .unwrap()
+                .strip_suffix("\"")
+                .expect("string literal not properly terminated with a quote")
+                .to_string();
+            return Ok(IniValue::String(result));
+        }
+
+        if s.starts_with("(") {
+            let result: Vec<&str> = s.strip_prefix("(")
+                .unwrap()
+                .strip_suffix(")")
+                .expect("tuple literal not properly terminated with a brace")
+                .split(",")
+                .collect();
+            if result.len() != 3 {
+                eprintln!("tuple literals must have exactly 3 values");
+            }
+            return Ok(IniValue::Tuple([
+                result[0].trim().parse::<f32>().expect("tuple element must be a number"),
+                result[1].trim().parse::<f32>().expect("tuple element must be a number"),
+                result[2].trim().parse::<f32>().expect("tuple element must be a number")
+            ]))
+        }
+
         let result = s.parse::<f32>();
         match result {
             Ok(val) => return Ok(Number(val)),
@@ -51,6 +81,7 @@ impl IniConfiguration {
             if line.starts_with("[") {
                 section_name = line.strip_prefix("[").unwrap().strip_suffix("]").unwrap().to_string();
                 sections.insert(section_name.clone(), Section{values: HashMap::new()});
+                continue;
             }
 
             if section_name.is_empty() {
@@ -60,11 +91,12 @@ impl IniConfiguration {
             let section = sections.get_mut(&section_name)
                 .expect(&format!("no section with name: {section_name}"));
 
-            let split = line.split(":");
+            let split = line.split("=");
 
             let mut key = None;
             let mut value = None;
             for (i, part) in split.enumerate() {
+                let part = part.trim();
                 if i > 1 { eprintln!("weird split"); }
                 if i == 0 { key = Some(part.to_string()); }
                 if i == 1 { value = Some(IniValue::from(part).expect("couldn't parse ini value")); }
@@ -74,5 +106,18 @@ impl IniConfiguration {
 
         Self{sections}
     }
+}
 
+#[test]
+fn test_ini_parser() {
+    let config = IniConfiguration::new("tori.ini");
+    assert!(config.sections.contains_key("General"));
+
+    for section in config.sections.iter() {
+        println!("section: {}", section.0);
+        for section_keyval in section.1.values.iter() {
+            println!("\tkeyval: {{ {}, {:?} }}", section_keyval.0, section_keyval.1);
+        }
+        println!();
+    }
 }
