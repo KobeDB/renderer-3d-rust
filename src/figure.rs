@@ -3,6 +3,7 @@ use crate::{Color, vec4};
 use vec4::Vec4;
 use crate::matrix4::Matrix4;
 
+#[derive(Clone)]
 pub struct Figure {
     pub mesh: Mesh,
     pub ambient_reflection: Color,
@@ -10,6 +11,7 @@ pub struct Figure {
     pub specular_reflection: Color,
 }
 
+#[derive(Clone)]
 pub struct Face {
     // indexes in points from Figure, stored counter clock wise if you
     // look at the face from the outside
@@ -22,6 +24,7 @@ impl Face{
     }
 }
 
+#[derive(Clone)]
 pub struct Mesh {
     pub vertices: Vec<Vec4>,
     pub faces: Vec<Face>,

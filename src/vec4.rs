@@ -1,6 +1,6 @@
 use crate::matrix4::Matrix4;
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Vec4 { elems: [f32;4] }
 
 impl Vec4 {

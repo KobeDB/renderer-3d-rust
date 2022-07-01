@@ -18,22 +18,12 @@ use color::Color;
 
 use bmp::*;
 use crate::figure::Figure;
+use crate::ini_reader::IniConfiguration;
 use crate::matrix4::{Matrix4, PolarCoord};
 use crate::vec2::Vec2;
 
 fn main() {
     println!("Hello, world!");
-
-    let mut image = Image::new(100,100);
-
-    for (x,y) in image.coordinates() {
-        image.put_pixel(x, y, px!(255, 0, 255));
-    }
-
-    image.put_pixel(0,0, Pixel{r:255,g:255,b:255});
-    image.put_pixel(0,image.get_height()-1, Pixel{r:0,g:255,b:255});
-
-    image.save("siccimage.bmp").expect("writing to file failed");
 }
 
 trait Light {
@@ -41,21 +31,187 @@ trait Light {
 }
 
 struct Eye {
-    eye_pos: Vec4,
-    eye_looking_dir: Vec4,
+    pos: Vec4,
+    looking_dir: Vec4,
     hfov_rad: f32,
     aspect_ratio: f32,  // w/h
     image_width: u32,   // the final image width in pixels
 }
 
+enum FigureType {
+    Tetrahedron(),
+    Torus(f32, f32, u32, u32), // radius, ring_radius, rings_amt, ring_points_amt
+}
+
+struct FigureDescription {
+    figure_type: FigureType,
+    ambient_reflection: Color,
+    diffuse_reflection: Color,
+    specular_reflection: Color,
+    center: Vec4,
+    scale:  f32,
+    rotation_x_rad: f32,
+    rotation_y_rad: f32,
+    rotation_z_rad: f32,
+}
+
 struct SceneDescription {
-    figures: Vec<Figure>,
+    figures: Vec<FigureDescription>,
     lights:  Vec<Box<dyn Light>>,
     eye: Eye,
 }
 
+fn read_scene_description_from_ini_file(path_to_ini: &str) -> SceneDescription {
+
+    let configuration = IniConfiguration::new(path_to_ini);
+
+    let general = configuration.get_section("General").unwrap();
+
+    // Reading eye info
+
+    let aspect_ratio = general.as_f32_or_default("aspectRatio", 4.0/3.0);
+    let eye_pos = general.as_tuple_or_default("eye", [20.0, 10.0, 15.0]);
+    let eye_pos = Vec4::new_point(eye_pos[0], eye_pos[1],eye_pos[2]);
+    let eye_looking_dir = general.as_tuple_or_default("viewDirection", [-eye_pos.x(), -eye_pos.y(), -eye_pos.z()]);
+    let eye_looking_dir= Vec4::new_vec4(eye_looking_dir[0], eye_looking_dir[1], eye_looking_dir[2]);
+    let hfov_rad = general.as_f32_or_default("hfov", 90.0).to_radians();
+    let image_width = general.as_f32_or_default("size", 1024.0) as u32;
+
+    let eye = Eye{ pos: eye_pos, looking_dir: eye_looking_dir, hfov_rad, aspect_ratio, image_width};
+
+    // Reading figures
+
+    let mut figures = Vec::new();
+    let figures_amt = general.as_f32_or_default("nrFigures", 0.0) as u32;
+
+    for i in 0..figures_amt {
+        let figure_section = configuration.get_section(&format!("Figure{i}")).unwrap();
+
+        let figure_type = figure_section.as_string_or_die("type");
+
+        let mut figure_type = match figure_type.as_str() {
+            "Tetrahedron" => { FigureType::Tetrahedron() },
+            "Torus"       => {
+                let radius = figure_section.as_f32_or_die("R");
+                let ring_radius = figure_section.as_f32_or_die("r");
+                let rings_amt = figure_section.as_f32_or_die("n") as u32;
+                let ring_points_amt = figure_section.as_f32_or_die("m") as u32;
+                FigureType::Torus(radius, ring_radius, rings_amt, ring_points_amt)
+            }
+            _ => {
+                println!("Too bad. I don't have your requested shape. How about a torus instead?");
+                FigureType::Torus(5.0, 1.0, 20, 20)
+            }
+        };
+
+        let ambient_reflection = if figure_section.key_exists("color") {
+            figure_section.as_tuple_or_die("color")
+        }
+        else {
+            figure_section.as_tuple_or_die("ambientReflection")
+        };
+        let ambient_reflection = Color::new(ambient_reflection[0], ambient_reflection[1], ambient_reflection[2]);
+
+        let diffuse_reflection = figure_section.as_tuple_or_default("diffuseReflection", [0.0;3]);
+        let diffuse_reflection = Color::new(diffuse_reflection[0], diffuse_reflection[1], diffuse_reflection[2]);
+
+        let specular_reflection = figure_section.as_tuple_or_default("specularReflection", [0.0;3]);
+        let specular_reflection = Color::new(specular_reflection[0], specular_reflection[1], specular_reflection[2]);
+
+        let center = figure_section.as_tuple_or_default("center", [0.0;3]);
+        let center = Vec4::new_vec4(center[0], center[1], center[2]);
+
+        let scale = figure_section.as_f32_or_default("scale", 1.0);
+
+        let rotation_x_rad = figure_section.as_f32_or_default("rotateX", 0.0).to_radians();
+        let rotation_y_rad = figure_section.as_f32_or_default("rotateY", 0.0).to_radians();
+        let rotation_z_rad = figure_section.as_f32_or_default("rotateZ", 0.0).to_radians();
+
+        figures.push(FigureDescription{
+            figure_type,
+            center,
+            scale,
+            rotation_x_rad, rotation_y_rad, rotation_z_rad,
+            ambient_reflection, diffuse_reflection, specular_reflection,
+        });
+    }
+
+    let mut lights = Vec::new();
+
+    SceneDescription{figures, lights, eye}
+}
+
+fn render_scene(scene_desc: &SceneDescription, path_to_output_image: &str) {
+
+    let aspect_ratio = scene_desc.eye.aspect_ratio; // width / height
+    let image_width = scene_desc.eye.image_width;
+    let image_height = (image_width as f32 * 1.0/aspect_ratio) as u32;
+
+    let mut image = Image::new(image_width, image_height);
+
+    let d_near = 1.0;
+    let d_far = 100.0;
+    let hfov_rad = PI/6.0;
+    let left = -f32::tan(hfov_rad/2.0) * d_near;
+    let right = -left;
+    let top = right * 1.0/aspect_ratio;
+    let bottom = -top;
+
+    let viewport_scaling = image_width as f32/(right-left) * 0.99;
+    let viewport_offset = Vec2::new(-left, -bottom);
+
+    let eye_pos = scene_desc.eye.pos;
+    let looking_dir = scene_desc.eye.looking_dir;
+    //let eye_point_transform = Matrix4::new_eye_point_transform_looking_at_origin(&eye_pos);
+    let eye_point_transform = Matrix4::new_eye_point_transform(&eye_pos, &looking_dir);
+
+    for figure_desc in scene_desc.figures.iter() {
+
+        let fig_mesh = match figure_desc.figure_type {
+            FigureType::Tetrahedron() => { Mesh::new_tetrahedron() }
+            FigureType::Torus(radius, ring_radius, rings_amt, ring_points_amt) => {
+                Mesh::new_torus(radius, ring_radius, rings_amt, ring_points_amt)
+            }
+        };
+
+        let mut fig = Figure{
+            mesh: fig_mesh,
+            ambient_reflection: figure_desc.ambient_reflection,
+            diffuse_reflection: figure_desc.diffuse_reflection,
+            specular_reflection: figure_desc.specular_reflection,
+        };
+
+        fig.mesh.triangulate();
+        fig.mesh.transform(&Matrix4::new_rotation_x(-figure_desc.rotation_x_rad)); // negate angle cuz counter clockwise rotation
+        fig.mesh.transform(&Matrix4::new_rotation_z(-figure_desc.rotation_z_rad)); // negate angle cuz counter clockwise rotation
+        //todo: rotate around y
+        fig.mesh.transform(&Matrix4::new_translation(&figure_desc.center));
+
+        fig.mesh.transform(&Matrix4::new_eye_point_transform(&scene_desc.eye.pos, &scene_desc.eye.looking_dir));
+
+        for face in fig.mesh.faces.iter() {
+            let a = &fig.mesh.vertices[face.indexes[0]];
+            let b = &fig.mesh.vertices[face.indexes[1]];
+            let c = &fig.mesh.vertices[face.indexes[2]];
+            draw_triangle(a, b, c,
+                          viewport_scaling, &viewport_offset,
+                          &fig.ambient_reflection, &fig.diffuse_reflection, &fig.specular_reflection,
+                          &mut image);
+        }
+    }
+
+    image.save(path_to_output_image).expect(&format!("writing image: {path_to_output_image} to file failed"));
+}
+
+#[test]
+fn test_scene_rendering() {
+    let scene = read_scene_description_from_ini_file("tori.ini");
+    render_scene(&scene, "tori.bmp");
+}
+
 #[test]
 fn test_rendering_stuff() {
+
     let aspect_ratio = 16.0/9.0; // width / height
     let image_width = 1024;
     let image_height = (image_width as f32 * 1.0/aspect_ratio) as u32;

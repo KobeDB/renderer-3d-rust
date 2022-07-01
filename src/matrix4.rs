@@ -41,11 +41,11 @@ impl Matrix4 {
         result
     }
 
-    pub fn new_translation(x:f32,y:f32,z:f32) -> Self {
+    pub fn new_translation(translation_vec: &Vec4) -> Self {
         let mut result = Self::new_identity();
-        result.elements[3][0] = x;
-        result.elements[3][1] = y;
-        result.elements[3][2] = z;
+        result.elements[3][0] = translation_vec.x();
+        result.elements[3][1] = translation_vec.y();
+        result.elements[3][2] = translation_vec.z();
         result
     }
 
@@ -62,7 +62,7 @@ impl Matrix4 {
 
     pub fn new_eye_point_transform(eye_pos: &Vec4, eye_dir: &Vec4) -> Self {
         let mut result = Self::new_identity();
-        result = Self::mul(&result, &Self::new_translation(-eye_pos.x(), -eye_pos.y(), -eye_pos.z()));
+        result = Self::mul(&result, &Self::new_translation(&eye_pos.neg()));
 
         let eye_dir = Vec4::normalize(eye_dir);
         let eye_dir = PolarCoord::new_from_cartesian(-eye_dir.x(), -eye_dir.y(), -eye_dir.z());

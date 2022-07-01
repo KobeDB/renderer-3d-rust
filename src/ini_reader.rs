@@ -55,7 +55,7 @@ impl IniValue {
     }
 }
 
-struct Section {
+pub struct Section {
     values: HashMap<String, IniValue>,
 }
 
@@ -85,8 +85,51 @@ impl Section {
                     IniValue::Tuple(_) => { default }
                 }
             }
-            Err(_) => default
+            None => default
         }
+    }
+
+    pub fn as_tuple_or_default(&self, key: &str, default: [f32;3]) -> [f32;3] {
+        match self.values.get(key) {
+            Some(result) => {
+                match result {
+                    Number(_) => { default }
+                    IniValue::String(_) => { default }
+                    IniValue::Tuple(val) => { *val }
+                }
+            }
+            None => default
+        }
+    }
+
+    pub fn as_tuple_or_die(&self, key: &str) -> [f32;3] {
+        match self.values.get(key) {
+            Some(result) => {
+                match result {
+                    Number(_) => { panic!() }
+                    IniValue::String(_) => { panic!() }
+                    IniValue::Tuple(val) => { *val }
+                }
+            }
+            None => panic!()
+        }
+    }
+
+    pub fn as_string_or_die(&self, key: &str) -> String {
+        match self.values.get(key) {
+            None => { panic!() }
+            Some(result) => {
+                match result {
+                    IniValue::String(val) => { val.clone() }
+                    Number(_) => {panic!()}
+                    IniValue::Tuple(_) => {panic!()}
+                }
+            }
+        }
+    }
+
+    pub fn key_exists(&self, key: &str) -> bool {
+        self.values.contains_key(key)
     }
 }
 
