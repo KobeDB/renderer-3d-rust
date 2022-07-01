@@ -59,6 +59,37 @@ struct Section {
     values: HashMap<String, IniValue>,
 }
 
+impl Section {
+    pub fn as_u32_or_die(&self, key: &str) -> u32 {
+        match self.values.get(key).unwrap() {
+            Number(val) => { if val.round() == *val { return *val as u32 } else {panic!("")} }
+            IniValue::String(_) => { panic!(""); }
+            IniValue::Tuple(_) => { panic!(""); }
+        }
+    }
+
+    pub fn as_f32_or_die(&self, key: &str) -> f32 {
+        match self.values.get(key).unwrap() {
+            Number(val) => { *val }
+            IniValue::String(_) => { panic!(""); }
+            IniValue::Tuple(_) => { panic!(""); }
+        }
+    }
+
+    pub fn as_f32_or_default(&self, key: &str, default: f32) -> f32 {
+        match self.values.get(key) {
+            Some(result) => {
+                match result {
+                    Number(val) => { *val }
+                    IniValue::String(_) => { default }
+                    IniValue::Tuple(_) => { default }
+                }
+            }
+            Err(_) => default
+        }
+    }
+}
+
 pub struct IniConfiguration {
     sections: HashMap<String, Section>,
 }
@@ -103,8 +134,14 @@ impl IniConfiguration {
             }
             section.values.insert(key.expect("no key found"), value.expect("no value found"));
         }
-
         Self{sections}
+    }
+
+    pub fn get_section(&self, section_name: &str) -> Result<&Section, ()> {
+        match self.sections.get(section_name) {
+            None => { Err(()) },
+            Some(sec) => { Ok(sec) },
+        }
     }
 }
 
@@ -120,4 +157,8 @@ fn test_ini_parser() {
         }
         println!();
     }
+
+    let figure0_section = config.get_section("Figure0").expect("no section Figure0");
+    let scale = figure0_section.as_u32_or_die("scale");
+    println!("scale: {scale}");
 }

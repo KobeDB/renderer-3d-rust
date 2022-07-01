@@ -36,7 +36,23 @@ fn main() {
     image.save("siccimage.bmp").expect("writing to file failed");
 }
 
+trait Light {
+    fn calculate_reflected_light(&self);
+}
 
+struct Eye {
+    eye_pos: Vec4,
+    eye_looking_dir: Vec4,
+    hfov_rad: f32,
+    aspect_ratio: f32,  // w/h
+    image_width: u32,   // the final image width in pixels
+}
+
+struct SceneDescription {
+    figures: Vec<Figure>,
+    lights:  Vec<Box<dyn Light>>,
+    eye: Eye,
+}
 
 #[test]
 fn test_rendering_stuff() {
